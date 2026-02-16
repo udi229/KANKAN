@@ -383,7 +383,9 @@
     <button class="app-tab active" data-tab="tab-request" onclick="showTab('tab-request',this)">📋 בקשת חופשה</button>
     <button class="app-tab" data-tab="tab-calendar" onclick="showTab('tab-calendar',this)">📅 לוח שנה שלי</button>
     <button class="app-tab" id="tab-rep-btn" style="display:none" data-tab="tab-rep" onclick="showTab('tab-rep',this)">💼 המלצות נציג</button>
-    <button class="app-tab" id="tab-admin-btn" style="display:none" data-tab="tab-admin" onclick="showTab('tab-admin',this)">🔧 ניהול</button>
+    <button class="app-tab" id="tab-admin-cal-btn" style="display:none" data-tab="tab-admin-cal" onclick="showTab('tab-admin-cal',this)">📅 יומן חופשות</button>
+    <button class="app-tab" id="tab-admin-req-btn" style="display:none" data-tab="tab-admin-req" onclick="showTab('tab-admin-req',this)">📋 בקשות</button>
+    <button class="app-tab" id="tab-admin-settings-btn" style="display:none" data-tab="tab-admin-settings" onclick="showTab('tab-admin-settings',this)">⚙️ הגדרות</button>
     <button class="app-tab" id="tab-viewer-btn" style="display:none" data-tab="tab-viewer-cal" onclick="showTab('tab-viewer-cal',this)">👁 צפייה כללית</button>
   </div>
   <div class="tab-panels">
@@ -438,17 +440,17 @@
       <div id="rep-requests-list"></div>
     </div>
 
-    <!-- ADMIN -->
-    <div id="tab-admin" class="tab-content">
+    <!-- ADMIN CAL TAB -->
+    <div id="tab-admin-cal" class="tab-content">
       <div class="admin-grid">
         <div class="stat-card"><div class="stat-icon orange">📋</div><div class="stat-info"><h3 id="stat-total">0</h3><p>סה״כ בקשות</p></div></div>
         <div class="stat-card"><div class="stat-icon yellow">⏳</div><div class="stat-info"><h3 id="stat-pending">0</h3><p>ממתינות</p></div></div>
         <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><h3 id="stat-approved">0</h3><p>אושרו</p></div></div>
         <div class="stat-card"><div class="stat-icon red">❌</div><div class="stat-info"><h3 id="stat-rejected">0</h3><p>נדחו</p></div></div>
       </div>
-      <div class="calendar-container" style="margin-bottom:20px">
+      <div class="calendar-container">
         <div class="calendar-header">
-          <div class="calendar-title">📅 כל הבקשות</div>
+          <div class="calendar-title">📅 יומן חופשות — כל העובדים</div>
           <div class="cal-nav">
             <button onclick="changeAdminMonth(-1)">‹</button>
             <div class="cal-month-name" id="admin-cal-month-display"></div>
@@ -472,6 +474,23 @@
         </div>
         <div class="cal-grid" id="admin-calendar"></div>
       </div>
+    </div>
+
+    <!-- ADMIN REQUESTS TAB -->
+    <div id="tab-admin-req" class="tab-content">
+      <div class="requests-table">
+        <div class="table-header"><div class="table-title">📋 כל הבקשות</div></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>שם</th><th>מחלקה</th><th>תאריכים</th><th>סיבה</th><th>המלצה</th><th>סטטוס</th><th>פעולות</th></tr></thead>
+            <tbody id="admin-requests-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN SETTINGS TAB -->
+    <div id="tab-admin-settings" class="tab-content">
       <div class="settings-section">
         <h3>🏢 נציגי מחלקות</h3>
         <div class="dept-assign-grid" id="dept-assign-grid"></div>
@@ -482,7 +501,6 @@
         <p style="font-size:11px;color:var(--text-light);margin-bottom:12px">מחיקת משתמש תמחק גם את כל הבקשות שלו</p>
         <div id="users-manage-list"></div>
       </div>
-
       <div class="viewer-section">
         <h3>👁 הגדרת צופים</h3>
         <p style="font-size:11px;color:var(--text-light);margin-bottom:12px">צופים רואים את כל לוחות המחלקות ללא יכולת שינוי</p>
@@ -497,15 +515,6 @@
         <div class="form-row">
           <div class="form-field"><label>סיסמה חדשה (4 ספרות)</label><input type="password" id="new-password" maxlength="4" placeholder="4 ספרות" style="letter-spacing:8px;font-size:17px"></div>
           <div class="form-field" style="display:flex;align-items:flex-end"><button class="btn-submit" onclick="changeAdminPassword()" style="height:44px">שנה</button></div>
-        </div>
-      </div>
-      <div class="requests-table">
-        <div class="table-header"><div class="table-title">📋 כל הבקשות</div></div>
-        <div style="overflow-x:auto">
-          <table>
-            <thead><tr><th>שם</th><th>מחלקה</th><th>תאריכים</th><th>סיבה</th><th>המלצה</th><th>סטטוס</th><th>פעולות</th></tr></thead>
-            <tbody id="admin-requests-tbody"></tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -707,6 +716,11 @@ async function loginUser(){
 function logout(){
   currentUser=null;isAdmin=false;isViewer=false;
   document.getElementById('admin-btn-app').style.display='none';
+  // Restore employee tabs visibility
+  const rBtn=document.querySelector('[data-tab="tab-request"]');
+  const cBtn=document.querySelector('[data-tab="tab-calendar"]');
+  if(rBtn)rBtn.style.display='';
+  if(cBtn)cBtn.style.display='';
   switchScreen('screen-app','screen-register');
 }
 
@@ -714,15 +728,19 @@ function logout(){
 async function enterApp(adminMode=false,viewerMode=false){
   await loadShared();
   isAdmin=adminMode;isViewer=viewerMode;
-  ['tab-rep-btn','tab-admin-btn','tab-viewer-btn'].forEach(id=>document.getElementById(id).style.display='none');
+  ['tab-rep-btn','tab-admin-btn','tab-admin-cal-btn','tab-admin-req-btn','tab-admin-settings-btn','tab-viewer-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   document.getElementById('admin-btn-app').style.display='none';
   const rBtn=document.querySelector('[data-tab="tab-request"]');
   rBtn.style.opacity='';rBtn.style.pointerEvents='';
   if(isAdmin){
     document.getElementById('header-name').textContent='🔧 מנהל על';
     document.getElementById('header-dept').textContent='ניהול';
-    document.getElementById('tab-admin-btn').style.display='flex';
-    renderAdminTab();showTab('tab-admin',document.getElementById('tab-admin-btn'));
+    // Hide employee-only tabs
+    document.querySelector('[data-tab="tab-request"]').style.display='none';
+    document.querySelector('[data-tab="tab-calendar"]').style.display='none';
+    // Show 3 admin tabs
+    ['tab-admin-cal-btn','tab-admin-req-btn','tab-admin-settings-btn'].forEach(id=>document.getElementById(id).style.display='flex');
+    renderAdminTab();showTab('tab-admin-cal',document.getElementById('tab-admin-cal-btn'));
   } else if(isViewer){
     document.getElementById('header-name').textContent=currentUser?currentUser.name:'צופה';
     document.getElementById('header-dept').textContent='צפייה בלבד';
@@ -749,12 +767,22 @@ function showTab(tabId,btn){
   const panel=document.getElementById(tabId);if(panel)panel.classList.add('active');
   if(btn)btn.classList.add('active');
   if(tabId==='tab-calendar')renderDeptCalendar();
+  if(tabId==='tab-admin-cal')renderAdminCalendar();
+  if(tabId==='tab-admin-req')renderReqTable();
+  if(tabId==='tab-admin-settings'){renderDeptGrid();renderViewerSection();renderUsersList();}
   if(tabId==='tab-admin')renderAdminTab();
   if(tabId==='tab-viewer-cal')renderViewerCalendar();
   if(tabId==='tab-rep')renderRepTab();
 }
 
 // Submit request
+function showAdminAlert(name, start, end){
+  // Flash the notification badge so admin sees new request
+  const badge = document.getElementById('notif-badge');
+  if(badge){ badge.style.transform='scale(1.8)'; badge.style.background='#ff0000';
+    setTimeout(()=>{badge.style.transform='';badge.style.background='';},1500); }
+}
+
 function onStartDateChange(){
   const start=document.getElementById('req-start').value;
   const endEl=document.getElementById('req-end');
@@ -778,6 +806,8 @@ async function submitRequest(){
   showToast('הבקשה נשלחה! 🎬','success');
   document.getElementById('req-start').value='';document.getElementById('req-end').value='';document.getElementById('req-reason').value='';
   renderMyRequests();checkNotifications();
+  // Admin notification badge
+  showAdminAlert(req.name, req.start, req.end);
 }
 
 function renderMyRequests(){
@@ -992,7 +1022,7 @@ async function openNotifDetail(notifId){
   const[si,sl,sc]=sm[req.status]||sm.pending;
   const rm={recommended:'👍 ממולץ לאישור',not_recommended:'👎 לא מומלץ'};
   let navBtn='';
-  if(isAdmin){navBtn=`<button class="btn-submit" onclick="closeEventModal();showTab('tab-admin',document.getElementById('tab-admin-btn'));" style="width:100%;margin-top:14px">🔧 עבור לניהול</button>`;}
+  if(isAdmin){navBtn=`<button class="btn-submit" onclick="closeEventModal();showTab('tab-admin-req',document.getElementById('tab-admin-req-btn'));" style="width:100%;margin-top:14px">🔧 עבור לבקשות</button>`;}
   else if(Object.values(DB.deptReps).includes(currentUser?.id)){navBtn=`<button class="btn-submit" onclick="closeEventModal();showTab('tab-rep',document.getElementById('tab-rep-btn'));" style="width:100%;margin-top:14px">💼 עבור להמלצות</button>`;}
   else{navBtn=`<button class="btn-submit" onclick="closeEventModal();showTab('tab-request',document.querySelector('[data-tab=tab-request]'));" style="width:100%;margin-top:14px">📋 עבור לבקשות שלי</button>`;}
   document.getElementById('event-modal-content').innerHTML=`
@@ -1367,6 +1397,101 @@ function initCanvas() {
     else if(onAirState==='fadein') { onAirAlpha=Math.min(1,onAirAlpha+0.024); if(onAirAlpha>=1)onAirState='on'; }
   }
 
+  // Plane state — flies from right to left across sky
+  let planeX = -120, planeY = 0, planeInit = false;
+  function resetPlane(W, H) {
+    planeX = W + 120;
+    planeY = H * (0.12 + Math.random() * 0.22);
+  }
+
+  function drawPlane(W, H) {
+    if (!planeInit) { resetPlane(W, H); planeInit = true; }
+    planeX -= 1.4;
+    if (planeX < -140) resetPlane(W, H);
+    const px = planeX, py = planeY;
+    ctx.save();
+    ctx.translate(px, py);
+    // Contrail
+    ctx.beginPath();
+    for (let i = 0; i < 80; i++) {
+      const tx = i * 1.6, alpha = (1 - i/80) * 0.18;
+      ctx.beginPath(); ctx.arc(tx + 18, 0, 2.5 - i*0.025, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`; ctx.fill();
+    }
+    // Fuselage
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 22, 6, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+    // Nose
+    ctx.beginPath();
+    ctx.moveTo(-22, 0); ctx.lineTo(-32, 2); ctx.lineTo(-22, 4);
+    ctx.fillStyle = 'rgba(230,230,230,0.9)'; ctx.fill();
+    // Main wings
+    ctx.beginPath();
+    ctx.moveTo(-4, 0); ctx.lineTo(10, -22); ctx.lineTo(16, -20); ctx.lineTo(4, 0);
+    ctx.moveTo(-4, 0); ctx.lineTo(10, 22); ctx.lineTo(16, 20); ctx.lineTo(4, 0);
+    ctx.fillStyle = 'rgba(240,240,255,0.88)'; ctx.fill();
+    // Tail wings
+    ctx.beginPath();
+    ctx.moveTo(14, 0); ctx.lineTo(22, -10); ctx.lineTo(24, -8); ctx.lineTo(17, 0);
+    ctx.moveTo(14, 0); ctx.lineTo(22, 10); ctx.lineTo(24, 8); ctx.lineTo(17, 0);
+    ctx.fillStyle = 'rgba(220,220,240,0.85)'; ctx.fill();
+    // Window strip
+    ctx.fillStyle = 'rgba(135,200,255,0.6)';
+    ctx.fillRect(-14, -3, 20, 5);
+    // Engine
+    ctx.beginPath(); ctx.ellipse(2, 8, 5, 3, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(180,180,200,0.8)'; ctx.fill();
+    ctx.restore();
+  }
+
+  // Cocktail — static, bottom left corner of scene
+  function drawCocktail(W, H) {
+    const cx = W * 0.88, cy = H * 0.80;
+    ctx.save();
+    ctx.translate(cx, cy);
+    // Glass body (triangle shape)
+    ctx.beginPath();
+    ctx.moveTo(-18, -30); ctx.lineTo(18, -30);
+    ctx.lineTo(6, 8); ctx.lineTo(-6, 8); ctx.closePath();
+    const glassGrad = ctx.createLinearGradient(-18,-30,18,8);
+    glassGrad.addColorStop(0, 'rgba(255,180,50,0.75)');
+    glassGrad.addColorStop(0.5, 'rgba(255,120,30,0.65)');
+    glassGrad.addColorStop(1, 'rgba(200,80,20,0.55)');
+    ctx.fillStyle = glassGrad; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.2; ctx.stroke();
+    // Ice cubes
+    ctx.fillStyle = 'rgba(200,240,255,0.45)';
+    ctx.fillRect(-10, -25, 8, 7); ctx.fillRect(2, -22, 8, 7);
+    // Straw
+    ctx.beginPath(); ctx.moveTo(4, 8); ctx.lineTo(14, -38);
+    ctx.strokeStyle = 'rgba(255,80,80,0.85)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6, 8); ctx.lineTo(16, -38);
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+    // Stem
+    ctx.beginPath(); ctx.moveTo(-6, 8); ctx.lineTo(6, 8); ctx.lineTo(4, 20); ctx.lineTo(-4, 20);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill();
+    // Base
+    ctx.beginPath(); ctx.ellipse(0, 20, 10, 3, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill();
+    // Slice of orange on rim
+    ctx.beginPath(); ctx.arc(-16, -30, 7, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,160,0,0.85)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(-16, -30, 5, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,200,50,0.7)'; ctx.fill();
+    // Shine
+    ctx.beginPath(); ctx.moveTo(-14,-28); ctx.lineTo(-4,-26); ctx.lineTo(-6,-20); ctx.lineTo(-16,-22); ctx.closePath();
+    ctx.fillStyle='rgba(255,255,255,0.12)'; ctx.fill();
+    // Tiny umbrella
+    ctx.save(); ctx.translate(8, -30);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,14);
+    ctx.strokeStyle='rgba(200,100,50,0.8)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-10,0); ctx.bezierCurveTo(-10,-12,10,-12,10,0); ctx.closePath();
+    ctx.fillStyle='rgba(255,80,80,0.75)'; ctx.fill();
+    ctx.restore();
+    ctx.restore();
+  }
+
   function loop() {
     const W=canvas.width, H=canvas.height;
     ctx.clearRect(0,0,W,H); t++;
@@ -1374,6 +1499,8 @@ function initCanvas() {
     drawSky(W,H);
     drawSea(W,H);
     drawSand(W,H);
+    drawPlane(W,H);
+    drawCocktail(W,H);
     drawPalm(W,H);
     drawHammock(W,H);
     drawOnAir(W);
