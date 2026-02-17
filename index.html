@@ -204,13 +204,13 @@
   .legend-dot { width:10px; height:10px; border-radius:3px; }
   .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
   .cal-day-name { text-align:center; font-size:10px; font-weight:700; color:var(--text-light); padding:6px 0; letter-spacing:.5px; }
-  .cal-day { min-height:78px; border:1px solid var(--border); border-radius:8px; padding:4px; background:white; transition:all .2s; overflow:hidden; }
+  .cal-day { min-height:62px; border:1px solid var(--border); border-radius:6px; padding:3px; background:white; transition:all .2s; overflow:hidden; }
   .cal-day:hover { border-color:var(--orange-light); background:var(--orange-pale); }
   .cal-day.other-month { opacity:.3; }
   .cal-day.today { border-color:var(--orange); border-width:2px; background:var(--orange-pale); }
   .cal-day-num { font-size:11px; font-weight:700; color:var(--text-light); margin-bottom:2px; }
   .cal-day.today .cal-day-num { color:var(--orange); }
-  .cal-event { font-size:10px; font-weight:600; padding:2px 4px; border-radius:3px; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+  .cal-event { font-size:9px; font-weight:700; padding:1px 3px; border-radius:3px; margin-bottom:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; line-height:1.4; }
   .cal-event.pending { background:var(--yellow); color:#5a4500; }
   .cal-event.approved { background:var(--green); color:white; }
   .cal-event.rejected { background:var(--red); color:white; }
@@ -766,6 +766,7 @@ async function enterApp(adminMode=false,viewerMode=false){
     document.getElementById('req-name').value=currentUser.name;
     document.getElementById('req-dept').value=currentUser.dept;
     renderMyRequests();checkNotifications();
+    
     showTab('tab-request',document.querySelector('[data-tab="tab-request"]'));
     renderDeptCalendar();
   }
@@ -792,6 +793,51 @@ function showAdminAlert(name, start, end){
   if(badge){ badge.style.transform='scale(1.8)'; badge.style.background='#ff0000';
     setTimeout(()=>{badge.style.transform='';badge.style.background='';},1500); }
 }
+
+
+
+// Israeli Holidays 2026-2028
+const IL_HOLIDAYS = {
+  // 2026
+  '2026-01-02':'ט\' בשבט',
+  '2026-03-02':'פורים','2026-03-03':'פורים',
+  '2026-03-31':'ערב פסח','2026-04-01':'פסח','2026-04-02':'פסח',
+  '2026-04-07':'פסח','2026-04-08':'פסח',
+  '2026-04-21':'יום הזיכרון','2026-04-22':'יום העצמאות',
+  '2026-05-11':'שבועות','2026-05-12':'שבועות',
+  '2026-07-02':'תשעה באב',
+  '2026-09-11':'ראש השנה','2026-09-12':'ראש השנה',
+  '2026-09-20':'יום כיפור',
+  '2026-09-25':'סוכות','2026-10-02':'שמחת תורה',
+  '2026-12-04':'חנוכה','2026-12-05':'חנוכה','2026-12-06':'חנוכה','2026-12-07':'חנוכה',
+  '2026-12-08':'חנוכה','2026-12-09':'חנוכה','2026-12-10':'חנוכה','2026-12-11':'חנוכה',
+  // 2027
+  '2027-01-21':'ט\' בשבט',
+  '2027-02-22':'פורים','2027-02-23':'פורים',
+  '2027-03-20':'ערב פסח','2027-03-21':'פסח','2027-03-22':'פסח',
+  '2027-03-27':'פסח','2027-03-28':'פסח',
+  '2027-04-12':'יום הזיכרון','2027-04-13':'יום העצמאות',
+  '2027-05-01':'שבועות',
+  '2027-07-22':'תשעה באב',
+  '2027-10-02':'ראש השנה','2027-10-03':'ראש השנה',
+  '2027-10-11':'יום כיפור',
+  '2027-10-16':'סוכות','2027-10-23':'שמחת תורה',
+  '2027-12-25':'חנוכה','2027-12-26':'חנוכה','2027-12-27':'חנוכה','2027-12-28':'חנוכה',
+  '2027-12-29':'חנוכה','2027-12-30':'חנוכה','2027-12-31':'חנוכה','2028-01-01':'חנוכה',
+  // 2028
+  '2028-02-10':'ט\' בשבט',
+  '2028-03-13':'פורים','2028-03-14':'פורים',
+  '2028-04-08':'ערב פסח','2028-04-09':'פסח','2028-04-10':'פסח',
+  '2028-04-15':'פסח','2028-04-16':'פסח',
+  '2028-05-01':'יום הזיכרון','2028-05-02':'יום העצמאות',
+  '2028-05-20':'שבועות',
+  '2028-08-10':'תשעה באב',
+  '2028-09-21':'ראש השנה','2028-09-22':'ראש השנה',
+  '2028-09-30':'יום כיפור',
+  '2028-10-05':'סוכות','2028-10-12':'שמחת תורה',
+  '2028-12-12':'חנוכה','2028-12-13':'חנוכה','2028-12-14':'חנוכה','2028-12-15':'חנוכה',
+  '2028-12-16':'חנוכה','2028-12-17':'חנוכה','2028-12-18':'חנוכה','2028-12-19':'חנוכה'
+};
 
 function onStartDateChange(){
   const start=document.getElementById('req-start').value;
@@ -849,9 +895,9 @@ function sendEmailNotification(req){
   }
   
   // Fallback: Open mailto link (will open user's email client)
-  // Uncomment below to enable:
-  // const mailtoLink = `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  // window.open(mailtoLink, '_blank');
+  // Auto-send email notification:
+  const mailtoLink = `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(mailtoLink, '_blank');
   
   console.log('📧 Email notification would be sent to:', adminEmail);
   console.log('Subject:', subject);
@@ -917,10 +963,24 @@ function renderCal(cid,year,month,reqs){
   for(let d=1;d<=dm;d++){
     const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isT=td.getFullYear()===year&&td.getMonth()===month&&td.getDate()===d;
-    const de=document.createElement('div');de.className='cal-day'+(isT?' today':'');
+    const hol=IL_HOLIDAYS[ds];
+    const de=document.createElement('div');
+    de.className='cal-day'+(isT?' today':'')+(hol?' holiday':'');
+    if(hol){de.style.background='rgba(255,215,0,0.12)';de.style.borderColor='rgba(230,180,0,0.4)';}
     const ne=document.createElement('div');ne.className='cal-day-num';ne.textContent=d;de.appendChild(ne);
+    // Holiday label
+    if(hol){const hl=document.createElement('div');hl.style.cssText='font-size:8px;color:#b8860b;font-weight:700;padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';hl.textContent='✡ '+hol;de.appendChild(hl);}
     const dr=reqs.filter(r=>ds>=r.start&&ds<=r.end&&r.status==='approved');
-    dr.slice(0,3).forEach(r=>{const ev=document.createElement('div');ev.className=`cal-event ${r.status}`;ev.textContent=r.name;ev.onclick=()=>showEvt(r);de.appendChild(ev);});
+    dr.slice(0,3).forEach(r=>{
+      const ev=document.createElement('div');
+      ev.className=`cal-event ${r.status}`;
+      // Show only first name to save space
+      const firstName=r.name.split(' ')[0];
+      ev.textContent=firstName;
+      ev.title=`${r.name} — ${fmt(r.start)} עד ${fmt(r.end)}`;
+      ev.onclick=()=>showEvt(r);
+      de.appendChild(ev);
+    });
     if(dr.length>3){const m=document.createElement('div');m.style.cssText='font-size:9px;color:var(--orange);font-weight:700;padding:1px 3px';m.textContent=`+${dr.length-3}`;de.appendChild(m);}
     c.appendChild(de);
   }
