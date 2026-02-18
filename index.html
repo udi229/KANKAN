@@ -219,6 +219,31 @@
   /* ADMIN */
   .admin-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; margin-bottom:22px; }
   @media(max-width:800px) { .admin-grid { grid-template-columns:1fr 1fr; } .form-row { grid-template-columns:1fr; } }
+  
+  /* Star of David pulse animation */
+  @keyframes star-pulse {
+    0%, 100% { opacity: 0.12; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 0.18; transform: translate(-50%, -50%) scale(1.05); }
+  }
+  
+  /* Font size control */
+  .font-size-control { display:flex; align-items:center; gap:8px; margin-left:auto; padding:4px 10px; background:rgba(255,255,255,0.05); border-radius:8px; }
+  .font-size-control label { font-size:11px; color:var(--text-light); font-weight:600; }
+  .font-size-btn { padding:4px 10px; border:1px solid var(--border); background:white; border-radius:5px; cursor:pointer; font-size:11px; font-weight:700; transition:all .2s; }
+  .font-size-btn:hover { background:var(--orange-pale); border-color:var(--orange); }
+  .font-size-btn.active { background:var(--orange); color:white; border-color:var(--orange); }
+  
+  /* Font size classes */
+  .app-content.font-small { font-size: 12px; }
+  .app-content.font-small .cal-event { font-size: 8px; padding: 1px 3px; }
+  .app-content.font-small .cal-day-num { font-size: 10px; }
+  .app-content.font-medium { font-size: 14px; }
+  .app-content.font-medium .cal-event { font-size: 10px; padding: 2px 4px; }
+  .app-content.font-medium .cal-day-num { font-size: 11px; }
+  .app-content.font-large { font-size: 16px; }
+  .app-content.font-large .cal-event { font-size: 12px; padding: 3px 5px; }
+  .app-content.font-large .cal-day-num { font-size: 13px; }
+
   .stat-card { background:white; border-radius:13px; padding:18px; box-shadow:var(--shadow); border:1px solid var(--border); display:flex; align-items:center; gap:12px; }
   .stat-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; }
   .stat-icon.orange { background:var(--orange-pale); }
@@ -398,6 +423,12 @@
     <button class="app-tab" id="tab-admin-req-btn" style="display:none" data-tab="tab-admin-req" onclick="showTab('tab-admin-req',this)">📋 בקשות</button>
     <button class="app-tab" id="tab-admin-settings-btn" style="display:none" data-tab="tab-admin-settings" onclick="showTab('tab-admin-settings',this)">⚙️ הגדרות</button>
     <button class="app-tab" id="tab-viewer-btn" style="display:none" data-tab="tab-viewer-cal" onclick="showTab('tab-viewer-cal',this)">👁 צפייה כללית</button>
+    <div class="font-size-control">
+      <label>גודל טקסט:</label>
+      <button class="font-size-btn" onclick="setFontSize('small')">קטן</button>
+      <button class="font-size-btn active" onclick="setFontSize('medium')">בינוני</button>
+      <button class="font-size-btn" onclick="setFontSize('large')">גדול</button>
+    </div>
   </div>
   <div class="tab-panels">
 
@@ -436,7 +467,6 @@
         <div class="calendar-legend">
           <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>ממתין</div>
           <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>אושרה</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>נדחתה</div>
         </div>
         <div class="cal-grid" id="dept-calendar"></div>
       </div>
@@ -481,7 +511,6 @@
         <div class="calendar-legend">
           <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>ממתין</div>
           <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>אושרה</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>נדחתה</div>
         </div>
         <div class="cal-grid" id="admin-calendar"></div>
       </div>
@@ -554,7 +583,6 @@
         <div class="calendar-legend">
           <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>ממתין</div>
           <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>אושרה</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>נדחתה</div>
         </div>
         <div class="cal-grid" id="viewer-calendar"></div>
       </div>
@@ -771,6 +799,25 @@ async function enterApp(adminMode=false,viewerMode=false){
     showTab('tab-request',document.querySelector('[data-tab="tab-request"]'));
     renderDeptCalendar();
   }
+  // Load saved font size preference
+  const savedSize = localStorage.getItem('fontSize') || 'medium';
+  const appContent = document.querySelector('.app-content');
+  appContent.classList.add('font-' + savedSize);
+  document.querySelectorAll('.font-size-btn').forEach(btn => {
+    if(btn.textContent === (savedSize==='small'?'קטן':savedSize==='large'?'גדול':'בינוני')) btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+}
+
+function setFontSize(size){
+  const appContent = document.querySelector('.app-content');
+  appContent.classList.remove('font-small', 'font-medium', 'font-large');
+  appContent.classList.add('font-' + size);
+  // Update button states
+  document.querySelectorAll('.font-size-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  // Save preference
+  localStorage.setItem('fontSize', size);
 }
 
 function showTab(tabId,btn){
@@ -1003,10 +1050,10 @@ function renderCal(cid,year,month,reqs){
     if(hol){
       de.style.border='2px solid #0038b8';
       de.style.position='relative';
-      // Add transparent Star of David overlay
+      // Add animated transparent Star of David overlay
       const star=document.createElement('div');
       star.innerHTML='✡';
-      star.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:45px;color:rgba(0,56,184,0.08);pointer-events:none;z-index:0;';
+      star.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:60px;color:rgba(0,56,184,0.12);pointer-events:none;z-index:0;animation:star-pulse 3s ease-in-out infinite;';
       de.appendChild(star);
     }
     const ne=document.createElement('div');ne.className='cal-day-num';ne.textContent=d;ne.style.position='relative';ne.style.zIndex='1';de.appendChild(ne);
