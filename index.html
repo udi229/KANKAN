@@ -1004,7 +1004,7 @@ function renderCal(cid,year,month,reqs){
     const ne=document.createElement('div');ne.className='cal-day-num';ne.textContent=d;de.appendChild(ne);
     // Holiday label
     if(hol){const hl=document.createElement('div');hl.style.cssText='font-size:8px;color:#b8860b;font-weight:700;padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';hl.textContent='✡ '+hol;de.appendChild(hl);}
-    const dr=reqs.filter(r=>ds>=r.start&&ds<=r.end&&r.status==='approved');
+    const dr=reqs.filter(r=>ds>=r.start&&ds<=r.end);
     dr.slice(0,3).forEach((r, index)=>{
       const ev=document.createElement('div');
       ev.className=`cal-event ${r.status}`;
