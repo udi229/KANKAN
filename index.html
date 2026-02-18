@@ -3,6 +3,7 @@
 <head>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>לוח חופשות - אולפן</title>
@@ -869,16 +870,58 @@ async function submitRequest(){
 }
 
 function sendEmailNotification(req){
-  // IMPORTANT: Email sending requires external service configuration
-  // Option 1: Use EmailJS (free) - https://www.emailjs.com/
-  // Option 2: Use server-side endpoint with Nodemailer/SendGrid
-  // For now, we'll show a browser notification as fallback
+  // ============================================
+  // EmailJS Configuration - הגדרת שליחת מייל
+  // ============================================
+  // כדי שזה יעבוד, עשה את הצעדים הבאים:
+  // 1. לך ל-https://www.emailjs.com והירשם (חינמי)
+  // 2. צור Email Service (Gmail/Outlook וכו')
+  // 3. צור Email Template עם המשתנים: {{from_name}}, {{dept}}, {{start_date}}, {{end_date}}, {{reason}}, {{site_url}}
+  // 4. העתק את ה-Public Key, Service ID ו-Template ID והדבק למטה
   
-  const adminEmail = 'admin@example.com'; // <-- הכנס כאן את המייל של המנהל
-  const subject = `בקשת חופשה חדשה מ-${req.name}`;
-  const body = `שלום,\n\nהתקבלה בקשת חופשה חדשה:\n\nשם: ${req.name}\nמחלקה: ${req.dept}\nתאריכים: ${fmt(req.start)} - ${fmt(req.end)}\nסיבה: ${req.reason}\n\nכנס לאתר לאישור: ${window.location.href}`;
+  const EMAILJS_CONFIG = {
+    publicKey: 'YOUR_PUBLIC_KEY',      // <-- הדבק כאן את ה-Public Key מ-EmailJS
+    serviceId: 'YOUR_SERVICE_ID',      // <-- הדבק כאן את ה-Service ID
+    templateId: 'YOUR_TEMPLATE_ID'     // <-- הדבק כאן את ה-Template ID
+  };
   
-  // Try browser notification first
+  // אם EmailJS מוגדר - שלח מייל אמיתי
+  if (EMAILJS_CONFIG.publicKey !== 'YOUR_PUBLIC_KEY' && typeof emailjs !== 'undefined') {
+    const templateParams = {
+      from_name: req.name,
+      dept: req.dept,
+      start_date: fmt(req.start),
+      end_date: fmt(req.end),
+      reason: req.reason,
+      site_url: window.location.href,
+      to_email: 'admin@example.com'  // <-- כתובת המייל של המנהל
+    };
+    
+    emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      templateParams,
+      EMAILJS_CONFIG.publicKey
+    ).then(
+      (response) => {
+        console.log('✅ Email sent successfully!', response.status, response.text);
+      },
+      (error) => {
+        console.error('❌ Email failed:', error);
+        // Fallback to browser notification
+        showBrowserNotification(req);
+      }
+    );
+  } else {
+    // אם EmailJS לא מוגדר - הצג התראת דפדפן בלבד
+    console.warn('⚠️ EmailJS not configured - showing browser notification only');
+    console.log('📧 To enable automatic emails, configure EmailJS at https://www.emailjs.com');
+    showBrowserNotification(req);
+  }
+}
+
+function showBrowserNotification(req){
+  // Browser notification as fallback
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification('בקשת חופשה חדשה', {
       body: `${req.name} ביקש חופשה: ${fmt(req.start)} - ${fmt(req.end)}`,
@@ -893,15 +936,6 @@ function sendEmailNotification(req){
       }
     });
   }
-  
-  // Fallback: Open mailto link (will open user's email client)
-  // Auto-send email notification:
-  const mailtoLink = `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.open(mailtoLink, '_blank');
-  
-  console.log('📧 Email notification would be sent to:', adminEmail);
-  console.log('Subject:', subject);
-  console.log('Body:', body);
 }
 
 function renderMyRequests(){
