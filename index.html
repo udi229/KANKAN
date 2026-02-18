@@ -1005,7 +1005,7 @@ function renderCal(cid,year,month,reqs){
     // Holiday label
     if(hol){const hl=document.createElement('div');hl.style.cssText='font-size:8px;color:#b8860b;font-weight:700;padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';hl.textContent='✡ '+hol;de.appendChild(hl);}
     const dr=reqs.filter(r=>ds>=r.start&&ds<=r.end&&r.status==='approved');
-    dr.slice(0,3).forEach(r=>{
+    dr.slice(0,3).forEach((r, index)=>{
       const ev=document.createElement('div');
       ev.className=`cal-event ${r.status}`;
       // Show only first name to save space
@@ -1013,6 +1013,10 @@ function renderCal(cid,year,month,reqs){
       ev.textContent=firstName;
       ev.title=`${r.name} — ${fmt(r.start)} עד ${fmt(r.end)}`;
       ev.onclick=()=>showEvt(r);
+      // Add stripes to every other event when multiple people on same day
+      if(dr.length > 1 && index % 2 === 1){
+        ev.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 6px)';
+      }
       de.appendChild(ev);
     });
     if(dr.length>3){const m=document.createElement('div');m.style.cssText='font-size:9px;color:var(--orange);font-weight:700;padding:1px 3px';m.textContent=`+${dr.length-3}`;de.appendChild(m);}
