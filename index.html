@@ -1004,7 +1004,7 @@ function renderCal(cid,year,month,reqs){
     const ne=document.createElement('div');ne.className='cal-day-num';ne.textContent=d;de.appendChild(ne);
     // Holiday label
     if(hol){const hl=document.createElement('div');hl.style.cssText='font-size:8px;color:#b8860b;font-weight:700;padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';hl.textContent='✡ '+hol;de.appendChild(hl);}
-    const dr=reqs.filter(r=>ds>=r.start&&ds<=r.end);
+    const dr=reqs.filter(r=>ds>=r.start&&ds<=r.end&&r.status!=='rejected');
     dr.slice(0,3).forEach((r, index)=>{
       const ev=document.createElement('div');
       ev.className=`cal-event ${r.status}`;
@@ -1014,18 +1014,13 @@ function renderCal(cid,year,month,reqs){
       ev.title=`${r.name} — ${fmt(r.start)} עד ${fmt(r.end)}`;
       ev.onclick=()=>showEvt(r);
       ev.style.position='relative';
-      // Unique colored dot for each user
-      const userColors = [
-        '#FF1493', '#00CED1', '#FF4500', '#9370DB', '#32CD32',
-        '#FF69B4', '#1E90FF', '#FFD700', '#FF6347', '#20B2AA',
-        '#BA55D3', '#00FA9A', '#FFA500', '#8A2BE2', '#00BFFF',
-        '#FF8C00', '#48D1CC', '#DA70D6', '#7FFF00', '#DC143C'
-      ];
-      const userHash = r.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const userColor = userColors[userHash % userColors.length];
-      const dot = document.createElement('span');
-      dot.style.cssText = `position:absolute;top:1px;left:2px;width:5px;height:5px;border-radius:50%;background:${userColor};box-shadow:0 0 2px rgba(0,0,0,0.3);`;
-      ev.appendChild(dot);
+      // Add red warning dot if there's overlap (multiple people on same day)
+      if(dr.length > 1){
+        const dot = document.createElement('span');
+        dot.style.cssText = `position:absolute;top:1px;left:2px;width:5px;height:5px;border-radius:50%;background:#ff0000;box-shadow:0 0 3px rgba(255,0,0,0.6);`;
+        dot.title = `⚠️ חפיפה: ${dr.length} עובדים באותו תאריך`;
+        ev.appendChild(dot);
+      }
       de.appendChild(ev);
     });
     if(dr.length>3){const m=document.createElement('div');m.style.cssText='font-size:9px;color:var(--orange);font-weight:700;padding:1px 3px';m.textContent=`+${dr.length-3}`;de.appendChild(m);}
