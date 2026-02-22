@@ -1262,7 +1262,128 @@ function checkPin(){
 async function changeAdminPassword(){const np=document.getElementById('new-password').value.trim();if(!/^\d{4}$/.test(np)){showToast('חייב להיות 4 ספרות','error');return;}DB.adminPassword=np;await saveDB();document.getElementById('new-password').value='';showToast('הסיסמה שונתה ✅','success');}
 
 function fmt(d){if(!d)return'';return new Date(d).toLocaleDateString('he-IL');}
-function showToast(msg,type=''){const c=document.getElementById('toast-container'),t=document.createElement('div');t.className=`toast ${type}`;const ic={success:'✅',error:'❌','':'🎬'};t.innerHTML=`<span class="toast-icon">${ic[type]||'🎬'}</span><span class="toast-msg">${msg}</span>`;c.appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(70px)';t.style.transition='0.4s';setTimeout(()=>t.remove(),400);},3200);}
+function showToast(msg,type=''){
+  // Special celebration for welcome and request submission
+  if(msg.includes('ברוך הבא') || msg.includes('הבקשה נשלחה')){
+    showCelebration(msg, type);
+    return;
+  }
+  // Regular small toast for other messages
+  const c=document.getElementById('toast-container'),t=document.createElement('div');
+  t.className=`toast ${type}`;
+  const ic={success:'✅',error:'❌','':'🎬'};
+  t.innerHTML=`<span class="toast-icon">${ic[type]||'🎬'}</span><span class="toast-msg">${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(70px)';t.style.transition='0.4s';setTimeout(()=>t.remove(),400);},3200);
+}
+
+function showCelebration(msg, type){
+  // Create huge celebration overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+  `;
+  
+  const isWelcome = msg.includes('ברוך הבא');
+  const icon = isWelcome ? '🎉' : '✈️';
+  const title = isWelcome ? 'ברוך הבא!' : 'הבקשה נשלחה בהצלחה!';
+  const subtitle = isWelcome ? msg : 'החופשה שלך בדרך... ✨';
+  
+  const card = document.createElement('div');
+  card.style.cssText = `
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 30px;
+    padding: 60px;
+    text-align: center;
+    max-width: 600px;
+    box-shadow: 0 30px 90px rgba(0,0,0,0.5);
+    animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    position: relative;
+    overflow: hidden;
+  `;
+  
+  // Animated particles
+  let particles = '';
+  for(let i=0; i<20; i++){
+    const x = Math.random() * 100;
+    const delay = Math.random() * 2;
+    const duration = 2 + Math.random() * 2;
+    particles += `<div style="position:absolute;left:${x}%;top:-20px;font-size:30px;animation:fall ${duration}s linear ${delay}s infinite;">${icon}</div>`;
+  }
+  
+  card.innerHTML = `
+    <style>
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes popIn { 
+        0% { transform: scale(0.3); opacity: 0; }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      @keyframes fall {
+        to { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+      }
+      @keyframes plane {
+        0% { transform: translateX(-100px) translateY(0); }
+        50% { transform: translateX(0) translateY(-10px); }
+        100% { transform: translateX(100px) translateY(0); }
+      }
+    </style>
+    ${particles}
+    <div style="font-size: 120px; margin-bottom: 20px; animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s backwards;">
+      ${icon}
+    </div>
+    <h1 style="color: white; font-size: 48px; font-weight: 900; margin: 0 0 15px 0; text-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+      ${title}
+    </h1>
+    <p style="color: rgba(255,255,255,0.95); font-size: 24px; margin: 0 0 30px 0; font-weight: 500;">
+      ${subtitle}
+    </p>
+    ${!isWelcome ? `
+      <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; backdrop-filter: blur(10px); margin-top: 30px;">
+        <div style="font-size: 60px; animation: plane 3s ease-in-out infinite;">✈️</div>
+        <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">הבקשה נשלחה למנהל לאישור</p>
+      </div>
+    ` : ''}
+    <button onclick="this.closest('[style*=fixed]').remove()" style="
+      background: white;
+      color: #667eea;
+      border: none;
+      padding: 18px 50px;
+      border-radius: 15px;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 30px;
+      font-family: 'Heebo', sans-serif;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      transition: all 0.3s;
+    " onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.3)';" onmouseout="this.style.transform=''; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.2)';">
+      מעולה! 🎉
+    </button>
+  `;
+  
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  
+  // Auto close after 5 seconds
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity 0.5s';
+    setTimeout(() => overlay.remove(), 500);
+  }, 5000);
+  
+  // Click outside to close
+  overlay.onclick = (e) => {
+    if(e.target === overlay) overlay.remove();
+  };
+}
 
 document.addEventListener('click',e=>{const p=document.getElementById('notifications-panel'),bell=document.getElementById('bell-btn');if(p.classList.contains('open')&&!p.contains(e.target)&&!bell.contains(e.target))p.classList.remove('open');});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'){if(document.getElementById('screen-register').classList.contains('active')){if(document.getElementById('form-login').style.display!=='none')loginUser();else registerUser();}}});
