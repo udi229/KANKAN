@@ -1142,14 +1142,19 @@ async function adminAction(reqId,action){
 
 function renderDeptGrid(){
   const grid=document.getElementById('dept-assign-grid');
-  grid.innerHTML=DEPTS.map(dept=>{
+  grid.innerHTML=DEPTS.map((dept, idx)=>{
     const users=DB.users.filter(u=>u.dept===dept),curr=DB.deptReps[dept]||'';
-    return`<div class="dept-card"><h4>${DI[dept]||'🏢'} ${dept}</h4><select class="dept-rep-select" id="drep-${dept.replace(/[^a-z0-9]/gi,'_')}"><option value="">ללא נציג</option>${users.map(u=>`<option value="${u.id}" ${curr===u.id?'selected':''}>${u.name}</option>`).join('')}${!users.length?'<option disabled>אין עובדים</option>':''}</select></div>`;
+    const deptId = `drep-${idx}`;  // Use index instead of name
+    return`<div class="dept-card"><h4>${DI[dept]||'🏢'} ${dept}</h4><select class="dept-rep-select" id="${deptId}" data-dept="${dept}"><option value="">ללא נציג</option>${users.map(u=>`<option value="${u.id}" ${curr===u.id?'selected':''}>${u.name}</option>`).join('')}${!users.length?'<option disabled>אין עובדים</option>':''}</select></div>`;
   }).join('');
 }
 async function saveDeptReps(){
   await loadShared();
-  DEPTS.forEach(dept=>{const el=document.getElementById(`drep-${dept.replace(/[^a-z0-9]/gi,'_')}`);if(el)DB.deptReps[dept]=el.value;});
+  // Use data-dept attribute instead of parsing ID
+  document.querySelectorAll('.dept-rep-select').forEach(el=>{
+    const dept = el.getAttribute('data-dept');
+    if(dept) DB.deptReps[dept] = el.value;
+  });
   await saveDB();showToast('נציגי המחלקות עודכנו ✅','success');
   if(currentUser){const isRep=Object.values(DB.deptReps).includes(currentUser.id);document.getElementById('tab-rep-btn').style.display=isRep?'flex':'none';}
 }
