@@ -979,18 +979,67 @@ function renderRepTab(){
   list.innerHTML=repReqs.map(r=>{
     const[si,sl,sc]=sm[r.status]||sm.pending;
     let acts;
-    if(r.status!=='pending'){acts='<span style="color:var(--text-light);font-size:11px">הבקשה טופלה על ידי המנהל</span>';}
-    else if(r.recommendation){acts=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${recL[r.recommendation]}<button class="action-btn btn-not-recommend" onclick="repAction('${r.id}','not_recommended')">שנה ל-👎</button><button class="action-btn btn-recommend" onclick="repAction('${r.id}','recommended')">שנה ל-👍</button></div>`;}
-    else{acts=`<div class="rep-actions"><button class="action-btn btn-recommend" onclick="repAction('${r.id}','recommended')">👍 ממליץ לאשר</button><button class="action-btn btn-not-recommend" onclick="repAction('${r.id}','not_recommended')">👎 לא ממליץ</button></div>`;}
+    if(r.status!=='pending'){
+      acts='<span style="color:var(--text-light);font-size:11px">הבקשה טופלה על ידי המנהל</span>';
+    }
+    else if(r.recommendation){
+      acts=`
+        <div style="margin-top:10px">
+          ${recL[r.recommendation]}
+          ${r.recommendationReason ? `<div style="background:#f5f5f5;padding:8px;border-radius:6px;margin-top:8px;font-size:12px;"><strong>סיבה:</strong> ${r.recommendationReason}</div>` : ''}
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="action-btn btn-not-recommend" onclick="openRepReasonModal('${r.id}','not_recommended')">שנה ל-👎</button>
+            <button class="action-btn btn-recommend" onclick="openRepReasonModal('${r.id}','recommended')">שנה ל-👍</button>
+          </div>
+        </div>
+      `;
+    }
+    else{
+      acts=`
+        <div class="rep-actions" style="margin-top:10px">
+          <button class="action-btn btn-recommend" onclick="openRepReasonModal('${r.id}','recommended')">👍 ממליץ לאשר</button>
+          <button class="action-btn btn-not-recommend" onclick="openRepReasonModal('${r.id}','not_recommended')">👎 לא ממליץ</button>
+        </div>
+      `;
+    }
     return`<div class="rep-request-item"><div class="rep-req-header"><div><div class="rep-req-name">👤 ${r.name}</div><div class="rep-req-dates">📅 ${fmt(r.start)} — ${fmt(r.end)} &nbsp;|&nbsp; ${r.dept}</div></div><span class="status-badge ${sc}">${si} ${sl}</span></div><div class="rep-req-reason">💬 ${r.reason}</div>${acts}</div>`;
   }).join('');
 }
 
-async function repAction(reqId,action){
+function openRepReasonModal(reqId, action){
+  const isRecommend = action === 'recommended';
+  const title = isRecommend ? '👍 ממליץ לאשר' : '👎 לא ממליץ';
+  const placeholder = isRecommend ? 'למה אתה ממליץ לאשר? (אופציונלי)' : 'למה אתה לא ממליץ? (אופציונלי)';
+  
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:30px;max-width:500px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <h3 style="margin:0 0 20px 0;font-size:20px;color:var(--dark);">${title}</h3>
+      <textarea id="rep-reason-input" placeholder="${placeholder}" style="width:100%;min-height:100px;padding:12px;border:2px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;resize:vertical;"></textarea>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <button onclick="this.closest('[style*=fixed]').remove()" style="padding:10px 20px;border:1px solid #ddd;background:white;border-radius:8px;cursor:pointer;font-family:'Heebo',sans-serif;">ביטול</button>
+        <button onclick="submitRepAction('${reqId}','${action}')" style="padding:10px 30px;border:none;background:${isRecommend?'var(--green)':'var(--red)'};color:white;border-radius:8px;cursor:pointer;font-family:'Heebo',sans-serif;font-weight:700;">שלח</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  document.getElementById('rep-reason-input').focus();
+}
+
+async function submitRepAction(reqId, action){
+  const reason = document.getElementById('rep-reason-input').value.trim();
+  await repAction(reqId, action, reason);
+  document.querySelector('[style*="position:fixed"]').remove();
+}
+
+async function repAction(reqId,action,reason=''){
   await loadShared();
   const req=DB.requests.find(r=>r.id===reqId);if(!req)return;
   req.recommendation=action;
-  DB.notifications.push({id:Date.now().toString()+'r',requestId:reqId,type:'recommendation',text:`💼 נציג ${currentUser.name} ${action==='recommended'?'ממליץ לאשר':'לא ממליץ'} את בקשת ${req.name} (${req.dept})`,for:['admin'],read:[],createdAt:new Date().toISOString()});
+  req.recommendationReason=reason;
+  const reasonText = reason ? ` (${reason})` : '';
+  DB.notifications.push({id:Date.now().toString()+'r',requestId:reqId,type:'recommendation',text:`💼 נציג ${currentUser.name} ${action==='recommended'?'ממליץ לאשר':'לא ממליץ'} את בקשת ${req.name} (${req.dept})${reasonText}`,for:['admin'],read:[],createdAt:new Date().toISOString()});
   await saveDB();
   showToast(action==='recommended'?'👍 המלצת אישור נשמרה':'👎 המלצת דחייה נשמרה',action==='recommended'?'success':'');
   renderRepTab();checkNotifications();
@@ -1115,8 +1164,9 @@ function renderReqTable(){
   tb.innerHTML=sorted.map(r=>{
     const[si,sl,sc]=sm[r.status]||sm.pending;
     const rec=r.recommendation?rm[r.recommendation]:null;
+    const recWithReason = rec ? `<span class="status-badge ${rec[2]}" ${r.recommendationReason?`title="סיבה: ${r.recommendationReason}" style="cursor:help;"`:''}>${rec[0]} ${rec[1]}${r.recommendationReason?' 💬':''}</span>` : '<span style="color:var(--text-light);font-size:10px">—</span>';
     const acts=r.status==='pending'?`<button class="action-btn btn-approve" onclick="adminAction('${r.id}','approved')">✅ אשר</button><button class="action-btn btn-reject" onclick="adminAction('${r.id}','rejected')">❌ דחה</button><button class="action-btn" style="background:#fee;color:#c00;border:1px solid #fcc" onclick="adminDeleteRequest('${r.id}')">🗑️</button>`:`<button class="action-btn" style="background:#fee;color:#c00;border:1px solid #fcc" onclick="adminDeleteRequest('${r.id}')">🗑️ מחק</button>`;
-    return`<tr><td><strong>${r.name}</strong></td><td>${r.dept}</td><td style="font-size:11px">${fmt(r.start)}<br><span style="color:var(--text-light)">עד</span> ${fmt(r.end)}</td><td style="max-width:130px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.reason}</td><td>${rec?`<span class="status-badge ${rec[2]}">${rec[0]} ${rec[1]}</span>`:'<span style="color:var(--text-light);font-size:10px">—</span>'}</td><td><span class="status-badge ${sc}">${si} ${sl}</span></td><td>${acts}</td></tr>`;
+    return`<tr><td><strong>${r.name}</strong></td><td>${r.dept}</td><td style="font-size:11px">${fmt(r.start)}<br><span style="color:var(--text-light)">עד</span> ${fmt(r.end)}</td><td style="max-width:130px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.reason}</td><td>${recWithReason}</td><td><span class="status-badge ${sc}">${si} ${sl}</span></td><td>${acts}</td></tr>`;
   }).join('');
 }
 async function adminDeleteRequest(reqId){
