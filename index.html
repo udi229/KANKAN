@@ -618,14 +618,25 @@ function sendDecisionEmail(req, action) {
     recSection = `\n\n${req.recommendedBy}:\n${req.recommendationReason}`;
   }
   
+  // Find department representative email
+  const repId = DB.deptReps[req.dept];
+  const rep = repId ? DB.users.find(u=>u.id===repId) : null;
+  const repEmail = rep ? rep.email : '';
+  
   const subject = action==='approved'
     ? `✅ בקשת החופשה שלך אושרה — ${fmt(req.start)} עד ${fmt(req.end)}`
     : `❌ בקשת החופשה שלך נדחתה — ${fmt(req.start)} עד ${fmt(req.end)}`;
   const body = action==='approved'
     ? `שלום ${req.name},\n\nשמחים לעדכן אותך כי בקשת החופשה שלך אושרה.\n\nפרטי הבקשה:\n• מחלקה: ${req.dept}\n• תאריך התחלה: ${fmt(req.start)}\n• תאריך סיום: ${fmt(req.end)}\n• סיבה: ${req.reason}${recSection}\n\nחופשה נעימה!\nצוות האולפן 🎬`
     : `שלום ${req.name},\n\nלצערנו, בקשת החופשה שלך נדחתה.\n\nפרטי הבקשה:\n• מחלקה: ${req.dept}\n• תאריך התחלה: ${fmt(req.start)}\n• תאריך סיום: ${fmt(req.end)}\n• סיבה: ${req.reason}${recSection}\n\nלשאלות ופניות — פנה/י למנהל הישיר.\nצוות האולפן 🎬`;
-  // Open Outlook Web compose
-  const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(req.email)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  
+  // Build Outlook URL with CC if rep exists
+  let outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(req.email)}`;
+  if(repEmail) {
+    outlookUrl += `&cc=${encodeURIComponent(repEmail)}`;
+  }
+  outlookUrl += `&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  
   window.open(outlookUrl, '_blank');
 }
 // ============ STORAGE — Firebase Firestore ============
@@ -743,8 +754,9 @@ async function loginUser(){
 }
 function logout(){
   currentUser=null;isAdmin=false;isViewer=false;
-  // Clear remembered user
+  // Clear remembered user and admin mode
   localStorage.removeItem('rememberedUser');
+  localStorage.removeItem('isAdmin');
   document.getElementById('admin-btn-app').style.display='none';
   // Restore employee tabs visibility
   const rBtn=document.querySelector('[data-tab="tab-request"]');
@@ -1056,9 +1068,7 @@ function openRepReasonModal(reqId, action){
 
 async function submitRepAction(reqId, action){
   const reason = document.getElementById('rep-reason-input').value.trim();
-  const modal = document.querySelector('[style*="position:fixed"]');
   await repAction(reqId, action, reason);
-  if(modal) modal.remove();
 }
 
 async function repAction(reqId,action,reason=''){
@@ -1071,7 +1081,13 @@ async function repAction(reqId,action,reason=''){
   DB.notifications.push({id:Date.now().toString()+'r',requestId:reqId,type:'recommendation',text:`💼 נציג ${currentUser.name} ${action==='recommended'?'ממליץ לאשר':'לא ממליץ'} את בקשת ${req.name} (${req.dept})${reasonText}`,for:['admin'],read:[],createdAt:new Date().toISOString()});
   await saveDB();
   showToast(action==='recommended'?'👍 המלצת אישור נשמרה':'👎 המלצת דחייה נשמרה',action==='recommended'?'success':'');
-  renderRepTab();checkNotifications();
+  checkNotifications();
+  // Close modal and then render - use setTimeout to ensure modal is found and removed
+  setTimeout(()=>{
+    const modal = document.querySelector('[style*="position:fixed"]');
+    if(modal) modal.remove();
+    renderRepTab();
+  }, 100);
 }
 
 // Calendar
@@ -1360,6 +1376,8 @@ function updatePin(){for(let i=0;i<4;i++){const d=document.getElementById(`pin-$
 function checkPin(){
   if(pinInput===DB.adminPassword){
     closeAdminModal();currentUser=null;isAdmin=true;isViewer=false;
+    // Save admin mode to localStorage
+    localStorage.setItem('isAdmin', 'true');
     if(document.getElementById('screen-register').classList.contains('active')){switchScreen('screen-register','screen-app');setTimeout(()=>enterApp(true,false),420);}
     else{enterApp(true,false);}
     showToast('ברוך הבא, מנהל! 🔧','success');
@@ -1951,6 +1969,16 @@ function initCanvas() {
   await loadDB();
   await loadUsers();
   await loadShared();
+  
+  // Check for remembered admin mode
+  const adminMode = localStorage.getItem('isAdmin');
+  if(adminMode === 'true'){
+    isAdmin = true;
+    currentUser = null;
+    switchScreen('screen-register','screen-app');
+    setTimeout(()=>enterApp(true, false),100);
+    return; // Don't check for regular user if admin
+  }
   
   // Check for remembered user and auto-login
   const remembered = localStorage.getItem('rememberedUser');
