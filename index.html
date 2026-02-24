@@ -501,7 +501,7 @@
         <div class="table-header"><div class="table-title">📋 כל הבקשות</div></div>
         <div style="overflow-x:auto">
           <table>
-            <thead><tr><th>שם</th><th>מחלקה</th><th>תאריכים</th><th>סיבה</th><th>המלצה</th><th>סטטוס</th><th>פעולות</th></tr></thead>
+            <thead><tr><th>שם</th><th>מחלקה</th><th>תאריכי חופשה</th><th>סיבה</th><th>המלצה</th><th>סטטוס</th><th>תאריך הגשה</th><th>פעולות</th></tr></thead>
             <tbody id="admin-requests-tbody"></tbody>
           </table>
         </div>
@@ -612,12 +612,18 @@ const DEPTS=['סאונד','ניתוב','במאים','ע.במאי',"סיג'י/פ�
 const DI={'סאונד':'🎵','ניתוב':'📡','במאים':'🎭','ע.במאי':'🎬',"סיג'י/פרומפטר":'💻','צלמים':'📷','מנהלי במה':'🎪','כללי':'⚙️'};
 
 function sendDecisionEmail(req, action) {
+  // Build recommendation section if exists - show only name and reason
+  let recSection = '';
+  if(req.recommendedBy && req.recommendationReason) {
+    recSection = `\n\n${req.recommendedBy}:\n${req.recommendationReason}`;
+  }
+  
   const subject = action==='approved'
     ? `✅ בקשת החופשה שלך אושרה — ${fmt(req.start)} עד ${fmt(req.end)}`
     : `❌ בקשת החופשה שלך נדחתה — ${fmt(req.start)} עד ${fmt(req.end)}`;
   const body = action==='approved'
-    ? `שלום ${req.name},\n\nשמחים לעדכן אותך כי בקשת החופשה שלך אושרה.\n\nפרטי הבקשה:\n• מחלקה: ${req.dept}\n• תאריך התחלה: ${fmt(req.start)}\n• תאריך סיום: ${fmt(req.end)}\n• סיבה: ${req.reason}\n\nחופשה נעימה!\nצוות האולפן 🎬`
-    : `שלום ${req.name},\n\nלצערנו, בקשת החופשה שלך נדחתה.\n\nפרטי הבקשה:\n• מחלקה: ${req.dept}\n• תאריך התחלה: ${fmt(req.start)}\n• תאריך סיום: ${fmt(req.end)}\n• סיבה: ${req.reason}\n\nלשאלות ופניות — פנה/י למנהל הישיר.\nצוות האולפן 🎬`;
+    ? `שלום ${req.name},\n\nשמחים לעדכן אותך כי בקשת החופשה שלך אושרה.\n\nפרטי הבקשה:\n• מחלקה: ${req.dept}\n• תאריך התחלה: ${fmt(req.start)}\n• תאריך סיום: ${fmt(req.end)}\n• סיבה: ${req.reason}${recSection}\n\nחופשה נעימה!\nצוות האולפן 🎬`
+    : `שלום ${req.name},\n\nלצערנו, בקשת החופשה שלך נדחתה.\n\nפרטי הבקשה:\n• מחלקה: ${req.dept}\n• תאריך התחלה: ${fmt(req.start)}\n• תאריך סיום: ${fmt(req.end)}\n• סיבה: ${req.reason}${recSection}\n\nלשאלות ופניות — פנה/י למנהל הישיר.\nצוות האולפן 🎬`;
   // Open Outlook Web compose
   const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(req.email)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.open(outlookUrl, '_blank');
@@ -716,6 +722,8 @@ async function registerUser(){
   const user={id:Date.now().toString(),name,email,dept,createdAt:new Date().toISOString()};
   DB.users.push(user);await saveUsers();
   currentUser=user;
+  // Save to localStorage for auto-login
+  localStorage.setItem('rememberedUser', JSON.stringify(user));
   switchScreen('screen-register','screen-app');
   setTimeout(()=>enterApp(),420);
   showToast(`ברוך הבא, ${name}! 🎬`,'success');
@@ -727,12 +735,16 @@ async function loginUser(){
   const user=DB.users.find(u=>u.email===email);
   if(!user){showToast('משתמש לא נמצא. אנא הירשם','error');return;}
   currentUser=user;
+  // Save to localStorage for auto-login
+  localStorage.setItem('rememberedUser', JSON.stringify(user));
   switchScreen('screen-register','screen-app');
   setTimeout(()=>enterApp(),420);
   showToast(`ברוך הבא, ${user.name}! 🎬`,'success');
 }
 function logout(){
   currentUser=null;isAdmin=false;isViewer=false;
+  // Clear remembered user
+  localStorage.removeItem('rememberedUser');
   document.getElementById('admin-btn-app').style.display='none';
   // Restore employee tabs visibility
   const rBtn=document.querySelector('[data-tab="tab-request"]');
@@ -1044,8 +1056,9 @@ function openRepReasonModal(reqId, action){
 
 async function submitRepAction(reqId, action){
   const reason = document.getElementById('rep-reason-input').value.trim();
+  const modal = document.querySelector('[style*="position:fixed"]');
   await repAction(reqId, action, reason);
-  document.querySelector('[style*="position:fixed"]').remove();
+  if(modal) modal.remove();
 }
 
 async function repAction(reqId,action,reason=''){
@@ -1053,6 +1066,7 @@ async function repAction(reqId,action,reason=''){
   const req=DB.requests.find(r=>r.id===reqId);if(!req)return;
   req.recommendation=action;
   req.recommendationReason=reason;
+  req.recommendedBy=currentUser.name.split(' ')[0]; // Save first name only
   const reasonText = reason ? ` (${reason})` : '';
   DB.notifications.push({id:Date.now().toString()+'r',requestId:reqId,type:'recommendation',text:`💼 נציג ${currentUser.name} ${action==='recommended'?'ממליץ לאשר':'לא ממליץ'} את בקשת ${req.name} (${req.dept})${reasonText}`,for:['admin'],read:[],createdAt:new Date().toISOString()});
   await saveDB();
@@ -1172,16 +1186,32 @@ function renderAdminTab(){
 }
 function renderReqTable(){
   const tb=document.getElementById('admin-requests-tbody');
-  const sorted=[...DB.requests].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
-  if(!sorted.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:26px;color:var(--text-light)">אין בקשות עדיין</td></tr>';return;}
+  // Sort: pending first, then by creation date (newest first)
+  const sorted=[...DB.requests].sort((a,b)=>{
+    // Pending requests go first
+    if(a.status==='pending' && b.status!=='pending') return -1;
+    if(a.status!=='pending' && b.status==='pending') return 1;
+    // Within same status, sort by date (newest first)
+    return new Date(b.createdAt)-new Date(a.createdAt);
+  });
+  if(!sorted.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:26px;color:var(--text-light)">אין בקשות עדיין</td></tr>';return;}
   const sm={pending:['⏳','ממתין','pending'],approved:['✅','אושרה','approved'],rejected:['❌','נדחתה','rejected']};
   const rm={recommended:['👍','מומלץ','recommended'],not_recommended:['👎','לא מומלץ','not-recommended']};
+  
+  // Function to format date and time
+  const formatDateTime = (dateStr) => {
+    const d = new Date(dateStr);
+    const date = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+    const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `${date}<br><span style="color:var(--text-light);font-size:11px">${time}</span>`;
+  };
+  
   tb.innerHTML=sorted.map(r=>{
     const[si,sl,sc]=sm[r.status]||sm.pending;
     const rec=r.recommendation?rm[r.recommendation]:null;
     const recWithReason = rec ? `<span class="status-badge ${rec[2]}" ${r.recommendationReason?`title="סיבה: ${r.recommendationReason}" style="cursor:help;"`:''}>${rec[0]} ${rec[1]}${r.recommendationReason?' 💬':''}</span>` : '<span style="color:var(--text-light);font-size:12px">—</span>';
     const acts=r.status==='pending'?`<button class="action-btn btn-approve" onclick="adminAction('${r.id}','approved')">✅ אשר</button><button class="action-btn btn-reject" onclick="adminAction('${r.id}','rejected')">❌ דחה</button><button class="action-btn" style="background:#fee;color:#c00;border:1px solid #fcc" onclick="adminDeleteRequest('${r.id}')">🗑️</button>`:`<button class="action-btn" style="background:#fee;color:#c00;border:1px solid #fcc" onclick="adminDeleteRequest('${r.id}')">🗑️ מחק</button>`;
-    return`<tr><td><strong>${r.name}</strong></td><td>${r.dept}</td><td style="font-size:13px">${fmt(r.start)}<br><span style="color:var(--text-light)">עד</span> ${fmt(r.end)}</td><td style="max-width:130px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.reason}</td><td>${recWithReason}</td><td><span class="status-badge ${sc}">${si} ${sl}</span></td><td>${acts}</td></tr>`;
+    return`<tr><td><strong>${r.name}</strong></td><td>${r.dept}</td><td style="font-size:13px">${fmt(r.start)}<br><span style="color:var(--text-light)">עד</span> ${fmt(r.end)}</td><td style="max-width:130px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.reason}</td><td>${recWithReason}</td><td><span class="status-badge ${sc}">${si} ${sl}</span></td><td style="font-size:12px">${formatDateTime(r.createdAt)}</td><td>${acts}</td></tr>`;
   }).join('');
 }
 async function adminDeleteRequest(reqId){
@@ -1208,11 +1238,15 @@ async function adminAction(reqId,action){
 function renderDeptGrid(){
   const grid=document.getElementById('dept-assign-grid');
   grid.innerHTML=DEPTS.map((dept, idx)=>{
-    // Show ALL users from ALL departments, not just from this specific department
-    const allUsers=DB.users;
+    // For each department, show users from same dept + all users from "כללי"
+    const deptUsers = DB.users.filter(u=>u.dept===dept);
+    const generalUsers = DB.users.filter(u=>u.dept==='כללי');
+    const availableUsers = [...deptUsers, ...generalUsers];
+    // Remove duplicates if any
+    const uniqueUsers = availableUsers.filter((u, i, arr) => arr.findIndex(x=>x.id===u.id) === i);
     const curr=DB.deptReps[dept]||'';
     const deptId = `drep-${idx}`;
-    return`<div class="dept-card"><h4>${DI[dept]||'🏢'} ${dept}</h4><select class="dept-rep-select" id="${deptId}" data-dept="${dept}"><option value="">ללא נציג</option>${allUsers.map(u=>`<option value="${u.id}" ${curr===u.id?'selected':''}>${u.name} (${u.dept})</option>`).join('')}${!allUsers.length?'<option disabled>אין עובדים</option>':''}</select></div>`;
+    return`<div class="dept-card"><h4>${DI[dept]||'🏢'} ${dept}</h4><select class="dept-rep-select" id="${deptId}" data-dept="${dept}"><option value="">ללא נציג</option>${uniqueUsers.map(u=>`<option value="${u.id}" ${curr===u.id?'selected':''}>${u.name}${u.dept!==dept?' (כללי)':''}</option>`).join('')}${!uniqueUsers.length?'<option disabled>אין עובדים</option>':''}</select></div>`;
   }).join('');
 }
 async function saveDeptReps(){
@@ -1917,6 +1951,26 @@ function initCanvas() {
   await loadDB();
   await loadUsers();
   await loadShared();
+  
+  // Check for remembered user and auto-login
+  const remembered = localStorage.getItem('rememberedUser');
+  if(remembered){
+    try{
+      const user = JSON.parse(remembered);
+      // Verify user still exists in database
+      const dbUser = DB.users.find(u=>u.id===user.id);
+      if(dbUser){
+        currentUser = dbUser;
+        switchScreen('screen-register','screen-app');
+        setTimeout(()=>enterApp(),100);
+      } else {
+        // User deleted, clear localStorage
+        localStorage.removeItem('rememberedUser');
+      }
+    } catch(e){
+      localStorage.removeItem('rememberedUser');
+    }
+  }
 })();
 </script>
 </body>
