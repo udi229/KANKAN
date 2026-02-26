@@ -1263,6 +1263,15 @@ async function adminDeleteRequest(reqId){
 async function adminAction(reqId,action){
   await loadShared();
   const req=DB.requests.find(r=>r.id===reqId);if(!req)return;
+  
+  console.log('🔍 Request details:', {
+    name: req.name,
+    dept: req.dept,
+    email: req.email
+  });
+  console.log('🔍 DB.deptReps:', DB.deptReps);
+  console.log('🔍 All users:', DB.users ? DB.users.map(u => ({name: u.name, email: u.email, dept: u.dept})) : 'NO USERS');
+  
   req.status=action;
   DB.notifications.push({id:Date.now().toString()+'a',requestId:reqId,type:action==='approved'?'request_approved':'request_rejected',text:`${action==='approved'?'✅ בקשתך אושרה':'❌ בקשתך נדחתה'} — ${fmt(req.start)} עד ${fmt(req.end)}`,for:[req.userId],read:[],createdAt:new Date().toISOString()});
   await saveDB();
@@ -1273,14 +1282,19 @@ async function adminAction(reqId,action){
   
   // 1. Department rep email - find the user by repId
   const repId = DB.deptReps ? DB.deptReps[req.dept] : null;
+  console.log('🔍 Looking for rep of dept:', req.dept, '=> repId:', repId);
+  
   if(repId && DB.users) {
     const repUser = DB.users.find(u => u.id === repId);
+    console.log('🔍 Found rep user:', repUser);
     if(repUser && repUser.email) {
       allCCEmails.push(repUser.email);
-      console.log('נציג מחלקה:', repUser.name, repUser.email);
+      console.log('✅ נציג מחלקה:', repUser.name, repUser.email);
     } else {
-      console.log('לא נמצא נציג למחלקה:', req.dept);
+      console.log('❌ לא נמצא נציג למחלקה:', req.dept);
     }
+  } else {
+    console.log('❌ אין repId או users');
   }
   
   // 2. Efrat's email - always
