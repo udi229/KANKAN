@@ -177,7 +177,7 @@
   .req-date-day { font-size:21px; font-weight:900; color:var(--orange); }
   .req-date-mon { font-size:12px; font-weight:700; color:var(--orange-light); }
   .req-info { flex:1; }
-  .req-info h4 { font-size:15px; font-weight:700; color:var(--dark); }
+  .req-info h4 { font-size:15px; font-weight:700; color:var(--dark); word-wrap:break-word; white-space:normal; }
   .req-info p { font-size:13px; color:var(--text-light); margin-top:2px; }
 
   /* BADGES */
@@ -265,7 +265,7 @@
   .rep-req-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:9px; }
   .rep-req-name { font-size:18px; font-weight:800; color:var(--dark); }
   .rep-req-dates { font-size:13px; color:var(--text-light); margin-top:2px; }
-  .rep-req-reason { background:var(--bg); border-radius:7px; padding:9px 13px; font-size:14px; color:var(--text); margin-bottom:12px; border:1px solid var(--border); }
+  .rep-req-reason { background:var(--bg); border-radius:7px; padding:9px 13px; font-size:14px; color:var(--text); margin-bottom:12px; border:1px solid var(--border); word-wrap:break-word; white-space:normal; }
   .rep-actions { display:flex; gap:8px; flex-wrap:wrap; }
 
   /* SETTINGS */
@@ -1241,7 +1241,7 @@ function renderReqTable(){
   tb.innerHTML=sorted.map(r=>{
     const[si,sl,sc]=sm[r.status]||sm.pending;
     const rec=r.recommendation?rm[r.recommendation]:null;
-    const recWithReason = rec ? `<span class="status-badge ${rec[2]}" ${r.recommendationReason?`title="סיבה: ${r.recommendationReason}" style="cursor:help;"`:''}>${rec[0]} ${rec[1]}${r.recommendationReason?' 💬':''}</span>` : '<span style="color:var(--text-light);font-size:12px">—</span>';
+    const recWithReason = rec ? `<span class="status-badge ${rec[2]}">${rec[0]} ${rec[1]}${r.recommendationReason?` <span style="cursor:pointer;" onclick="alert('סיבת ההמלצה:\\n${r.recommendationReason.replace(/'/g, "\\'")}')">💬</span>`:''}</span>` : '<span style="color:var(--text-light);font-size:12px">—</span>';
     
     // Always show all buttons - admin can change status anytime
     const acts = `
@@ -1250,7 +1250,7 @@ function renderReqTable(){
       <button class="action-btn" style="background:#fee;color:#c00;border:1px solid #fcc" onclick="adminDeleteRequest('${r.id}')">🗑️</button>
     `;
     
-    return`<tr><td><strong>${r.name}</strong></td><td>${r.dept}</td><td style="font-size:13px">${fmt(r.start)}<br><span style="color:var(--text-light)">עד</span> ${fmt(r.end)}</td><td style="max-width:130px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.reason}</td><td>${recWithReason}</td><td><span class="status-badge ${sc}">${si} ${sl}</span></td><td style="font-size:12px">${formatDateTime(r.createdAt)}</td><td>${acts}</td></tr>`;
+    return`<tr><td><strong>${r.name}</strong></td><td>${r.dept}</td><td style="font-size:13px">${fmt(r.start)}<br><span style="color:var(--text-light)">עד</span> ${fmt(r.end)}</td><td style="font-size:13px;max-width:250px;word-wrap:break-word;white-space:normal;">${r.reason}</td><td>${recWithReason}</td><td><span class="status-badge ${sc}">${si} ${sl}</span></td><td style="font-size:12px">${formatDateTime(r.createdAt)}</td><td>${acts}</td></tr>`;
   }).join('');
 }
 async function adminDeleteRequest(reqId){
